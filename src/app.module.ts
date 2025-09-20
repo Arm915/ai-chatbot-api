@@ -6,12 +6,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
 import { ChatModule } from './chat/chat.module';
 import { HistoryModule } from './history/history.module';
+import { TopicsModule } from './topics/topics.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRoot(process.env.MONGO_URI!),
     AuthModule,
+    TopicsModule, 
     ChatModule,
     HistoryModule,
   ],

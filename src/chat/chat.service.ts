@@ -1,16 +1,42 @@
-import { Injectable } from '@nestjs/common';
+// src/chat/chat.service.ts
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 
 @Injectable()
 export class ChatService {
-    async askLLM(prompt: string): Promise<string> {
-        // ตัวอย่าง: OpenAI Responses API (ปรับตามค่ายที่ใช้)
-        const res = await axios.post(
-            'https://api.openai.com/v1/responses',
-            { model: 'gpt-4.1-mini', input: prompt },
-            { headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` } },
-        );
-        const text = res.data?.output_text ?? res.data?.choices?.[0]?.message?.content ?? '';
-        return text;
+    private GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+
+    constructor(private config: ConfigService) { }
+
+    async askGemini(prompt: string): Promise<string> {
+        const apiKey = this.config.get<string>('GEMINI_API_KEY');
+        if (!apiKey) {
+            throw new InternalServerErrorException('GEMINI_API_KEY not set');
+        }
+
+        try {
+            const res = await axios.post(
+                `${this.GEMINI_URL}?key=${apiKey}`,
+                {
+                    contents: [
+                        {
+                            parts: [{ text: prompt }],
+                        },
+                    ],
+                },
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            );
+
+            return (
+                res.data?.candidates?.[0]?.content?.parts?.[0]?.text ??
+                '[no response]'
+            );
+        } catch (e: any) {
+            const msg = e?.response?.data?.error?.message ?? e.message;
+            throw new InternalServerErrorException(`Gemini error: ${msg}`);
+        }
     }
 }

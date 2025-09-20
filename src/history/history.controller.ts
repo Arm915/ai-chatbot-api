@@ -1,19 +1,26 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
-import { HistoryService } from './history.service';
+// src/histories/histories.controller.ts
+import { Body, Controller, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtGuard } from '../common/jwt.guard';
+import { HistoryService } from './history.service';
+import { TopicsService } from '../topics/topics.service';
 
-@Controller('history')
+@Controller('histories')
 @UseGuards(JwtGuard)
 export class HistoryController {
-    constructor(private history: HistoryService) { }
+    constructor(private histories: HistoryService, private topics: TopicsService) { }
 
-    @Get('me')
-    myHistory(@Req() req: any) {
-        return this.history.findByUser(req.user.userId);
+    @Post()
+    async add(@Req() req: any, @Body() dto: { topicId: string; question: string; answer: string }) {
+        await this.topics.ensureOwned(dto.topicId, req.user.userId);
+
+        const h = await this.histories.create(dto.topicId, dto.question, dto.answer);
+        await this.topics.touch(dto.topicId);
+        return h;
     }
 
-    @Get('all') // ใช้เป็นหน้า admin (คุณจะเพิ่ม role guard ภายหลังก็ได้)
-    all() {
-        return this.history.findAll();
+    @Get('/by-topic/:topicId')
+    async list(@Req() req: any, @Param('topicId') topicId: string) {
+        await this.topics.ensureOwned(topicId, req.user.userId);   
+        return this.histories.listByTopicAsc(topicId);
     }
 }
